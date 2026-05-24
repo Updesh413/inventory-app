@@ -91,7 +91,12 @@ export default function ProductsPage() {
   if (error) return (
     <div className="text-red-500 p-4 bg-red-50 rounded-md border border-red-100">
       <h3 className="font-bold">Error loading products</h3>
-      <p>{error.info?.error || error.message}</p>
+      <p className="font-medium">{error.info?.error || error.message}</p>
+      {error.info?.details && (
+        <pre className="mt-2 text-xs bg-red-100/50 p-2 rounded overflow-auto max-w-full">
+          {JSON.stringify(error.info.details, null, 2)}
+        </pre>
+      )}
     </div>
   )
   if (isLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin h-8 w-8 text-blue-500" /></div>

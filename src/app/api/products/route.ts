@@ -4,8 +4,12 @@ import { releaseExpiredReservations } from '@/lib/cleanup'
 
 export async function GET() {
   try {
-    // Lazy Cleanup: release any expired units before showing stock
-    await releaseExpiredReservations()
+    // Lazy Cleanup: attempt to release expired units, but don't crash if it fails
+    try {
+      await releaseExpiredReservations()
+    } catch (cleanupError) {
+      console.warn('Lazy cleanup failed, proceeding anyway:', cleanupError)
+    }
 
     const products = await prisma.product.findMany({
       include: {
