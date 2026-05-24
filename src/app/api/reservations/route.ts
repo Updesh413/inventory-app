@@ -3,11 +3,15 @@ import prisma from '@/lib/prisma'
 import redis from '@/lib/redis'
 import { createReservationSchema } from '@/lib/validations'
 import { type ReservationStatus } from '@prisma/client'
+import { releaseExpiredReservations } from '@/lib/cleanup'
 
 const RESERVATION_EXPIRY_MINUTES = 10
 
 export async function POST(req: NextRequest) {
   try {
+    // Lazy Cleanup: release any expired units before checking availability
+    await releaseExpiredReservations()
+
     const body = await req.json()
     const validated = createReservationSchema.safeParse(body)
     

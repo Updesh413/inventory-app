@@ -65,8 +65,10 @@ This locks the specific stock row for the duration of the transaction, ensuring 
 ### Reservation Expiry
 Reservations are held for 10 minutes.
 - **Frontend:** A live countdown timer shows remaining time.
-- **Backend:** A cron job endpoint `/api/cron/release-expired` handles cleanup.
-- **Mechanism:** In production, this endpoint should be triggered by a Vercel Cron job (configured in `vercel.json`). It identifies expired `PENDING` reservations and reverts the `reservedUnits` in the `Stock` table.
+- **Backend:** A hybrid approach is used for maximum reliability on Vercel Hobby plans:
+    1. **Lazy Cleanup on Read (Primary):** Expired reservations are automatically released whenever stock is listed or a new reservation is attempted. This ensures availability is always accurate at the moment of interaction.
+    2. **Daily Cron Job (Secondary):** A background cleanup task runs once per day via Vercel Cron to clean up any abandoned reservations that haven't been touched.
+- **Mechanism:** Both methods identify expired `PENDING` reservations and revert the `reservedUnits` in the `Stock` table using transactions.
 
 ### Idempotency
 Both the reservation creation and confirmation endpoints support an `Idempotency-Key` header.

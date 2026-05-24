@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { releaseExpiredReservations } from '@/lib/cleanup'
 
 export async function GET() {
   try {
+    // Lazy Cleanup: release any expired units before showing stock
+    await releaseExpiredReservations()
+
     const products = await prisma.product.findMany({
       include: {
         stocks: {
