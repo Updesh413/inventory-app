@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { ReservationStatus } from '@prisma/client'
+import { type ReservationStatus } from '@prisma/client'
 
 export async function GET(req: Request) {
   // Optional: Add authorization check for CRON_SECRET if deploying to Vercel
@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     // Find expired pending reservations
     const expiredReservations = await prisma.reservation.findMany({
       where: {
-        status: ReservationStatus.PENDING,
+        status: 'PENDING',
         expiresAt: {
           lt: now
         }
@@ -45,7 +45,7 @@ export async function GET(req: Request) {
         await tx.reservation.update({
           where: { id: res.id },
           data: {
-            status: ReservationStatus.RELEASED
+            status: 'RELEASED'
           }
         })
         

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { ReservationStatus } from '@prisma/client'
+import { type ReservationStatus } from '@prisma/client'
 
 export async function POST(
   req: NextRequest,
@@ -18,7 +18,7 @@ export async function POST(
       return NextResponse.json({ error: 'Reservation not found' }, { status: 404 })
     }
 
-    if (reservation.status !== ReservationStatus.PENDING) {
+    if (reservation.status !== 'PENDING') {
       return NextResponse.json({ error: `Reservation is already ${reservation.status}` }, { status: 400 })
     }
 
@@ -40,7 +40,7 @@ export async function POST(
       // 2. Update reservation status
       await tx.reservation.update({
         where: { id },
-        data: { status: ReservationStatus.CONFIRMED }
+        data: { status: 'CONFIRMED' }
       })
     })
 

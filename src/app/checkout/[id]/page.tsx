@@ -144,7 +144,7 @@ export default function CheckoutPage() {
           <div className="flex justify-between items-center">
             <CardTitle className="text-2xl">Complete Your Purchase</CardTitle>
             <Badge variant={
-              reservation.status === 'CONFIRMED' ? 'success' : 
+              reservation.status === 'CONFIRMED' ? 'default' : 
               reservation.status === 'RELEASED' ? 'destructive' : 
               isExpired ? 'destructive' : 'secondary'
             }>

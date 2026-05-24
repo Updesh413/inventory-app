@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import redis from '@/lib/redis'
 import { createReservationSchema } from '@/lib/validations'
-import { ReservationStatus } from '@prisma/client'
+import { type ReservationStatus } from '@prisma/client'
 
 const RESERVATION_EXPIRY_MINUTES = 10
 
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
         data: {
           stockId: stock.id,
           quantity,
-          status: ReservationStatus.PENDING,
+          status: 'PENDING',
           expiresAt,
           idempotencyKey: idempotencyKey || null,
         }
