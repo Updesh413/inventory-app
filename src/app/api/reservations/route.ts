@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import type { Prisma } from '@prisma/client'
 import redis from '@/lib/redis'
 import { createReservationSchema } from '@/lib/validations'
 import { releaseExpiredReservations } from '@/lib/cleanup'
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Database Transaction with Pessimistic Locking
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Find the stock record and lock it for update
       // Prisma queryRaw is needed for FOR UPDATE
       const stocks = await tx.$queryRaw<any[]>`

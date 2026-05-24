@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import type { Prisma } from '@prisma/client'
 
 export async function GET(req: Request) {
   // Optional: Add authorization check for CRON_SECRET if deploying to Vercel
@@ -30,7 +31,7 @@ export async function GET(req: Request) {
     // Use a transaction to ensure all updates are consistent
     // For large numbers, this might need chunking, but for a take-home, 
     // a single transaction is likely fine.
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       for (const res of expiredReservations) {
         // 1. Revert reserved units in Stock
         await tx.stock.update({

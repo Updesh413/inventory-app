@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import type { Prisma } from '@prisma/client'
 
 export async function POST(
   req: NextRequest,
@@ -22,7 +23,7 @@ export async function POST(
     }
 
     // Release the reservation
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // 1. Update stock levels: only decrement reservedUnits
       await tx.stock.update({
         where: { id: reservation.stockId },

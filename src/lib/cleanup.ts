@@ -1,4 +1,5 @@
 import prisma from './prisma'
+import type { Prisma } from '@prisma/client'
 
 /**
  * Automatically releases any pending reservations that have passed their expiry time.
@@ -18,7 +19,7 @@ export async function releaseExpiredReservations() {
   if (expired.length === 0) return 0
 
   // 2. Process in a transaction to ensure stock levels are corrected
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     for (const res of expired) {
       await tx.stock.update({
         where: { id: res.stockId },
