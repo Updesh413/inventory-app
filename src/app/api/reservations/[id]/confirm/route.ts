@@ -42,6 +42,18 @@ export async function POST(
         where: { id },
         data: { status: 'CONFIRMED' }
       })
+
+      // 3. Audit Log
+      await tx.auditLog.create({
+        data: {
+          action: 'CONFIRM',
+          reservationId: id,
+          productId: reservation.stock.productId,
+          warehouseId: reservation.stock.warehouseId,
+          quantity: reservation.quantity,
+          details: JSON.stringify({ stockId: reservation.stockId })
+        }
+      })
     })
 
     return NextResponse.json({ message: 'Reservation confirmed' })

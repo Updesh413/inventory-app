@@ -32,6 +32,15 @@ export async function releaseExpiredReservations() {
         where: { id: res.id },
         data: { status: 'RELEASED' }
       })
+
+      await tx.auditLog.create({
+        data: {
+          action: 'EXPIRE',
+          reservationId: res.id,
+          quantity: res.quantity,
+          details: JSON.stringify({ stockId: res.stockId, reason: 'LAZY_AUTO_EXPIRE' })
+        }
+      })
     }
   })
 

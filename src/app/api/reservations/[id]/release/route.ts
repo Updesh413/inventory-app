@@ -37,6 +37,18 @@ export async function POST(
         where: { id },
         data: { status: 'RELEASED' }
       })
+
+      // 3. Audit Log
+      await tx.auditLog.create({
+        data: {
+          action: 'RELEASE',
+          reservationId: id,
+          productId: reservation.stock.productId,
+          warehouseId: reservation.stock.warehouseId,
+          quantity: reservation.quantity,
+          details: JSON.stringify({ stockId: reservation.stockId, manual: true })
+        }
+      })
     })
 
     return NextResponse.json({ message: 'Reservation released' })

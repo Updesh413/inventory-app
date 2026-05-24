@@ -48,6 +48,18 @@ export async function GET() {
             status: 'RELEASED'
           }
         })
+
+        // 3. Audit Log
+        await tx.auditLog.create({
+          data: {
+            action: 'EXPIRE',
+            reservationId: res.id,
+            productId: null, // We'd need to join to get this, but stockId is enough
+            warehouseId: null,
+            quantity: res.quantity,
+            details: JSON.stringify({ stockId: res.stockId, reason: 'CRON_AUTO_EXPIRE' })
+          }
+        })
         
         releasedCount++
       }

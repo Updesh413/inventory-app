@@ -75,6 +75,27 @@ Both the reservation creation and confirmation endpoints support an `Idempotency
 - We store the result of the first successful request in Redis with a 24-hour TTL.
 - Subsequent requests with the same key receive the cached response without re-executing side effects.
 
+## Engineering Excellence Additions
+
+### 1. Concurrency Stress Test
+To prove that our pessimistic locking strategy works, I've included a script that fires 10-20 simultaneous requests for the last unit of a product.
+**How to run:**
+1. Start your local server: `npm run dev`
+2. Run the test: `node scripts/test-concurrency.js`
+The script will report how many requests were blocked (409) and how many succeeded (exactly 1).
+
+### 2. Operations Dashboard (`/ops`)
+Built a dedicated monitoring view for the "Ops" side of the business.
+- **Live Inventory:** Real-time visibility into total vs reserved stock.
+- **Reservation Tracking:** Monitor the lifecycle of all customer holds.
+- **Audit Logs:** Immutable record of every stock movement (RESERVE, CONFIRM, RELEASE, EXPIRE).
+
+### 3. Audit Logging System
+Implemented an `AuditLog` table that tracks every single state change in the system. This provides operational transparency and makes it easy to debug "lost" inventory or trace customer issues.
+
+### 4. Skeleton Loaders
+Implemented shimmer skeletons across the application to provide a premium, modern feel and better perceived performance during data fetching.
+
 ## Trade-offs & Future Improvements
 
 1. **Distributed Locking vs DB Locking:** For this exercise, pessimistic DB locking was chosen for its simplicity and strong consistency guarantees within the transaction. In a massive scale global system, a distributed lock (e.g., Redlock) might be preferred to reduce DB load.

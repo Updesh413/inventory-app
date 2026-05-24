@@ -83,6 +83,18 @@ export async function POST(req: NextRequest) {
         }
       })
 
+      // 4. Audit Log
+      await tx.auditLog.create({
+        data: {
+          action: 'RESERVE',
+          reservationId: reservation.id,
+          productId,
+          warehouseId,
+          quantity,
+          details: JSON.stringify({ stockId: stock.id, expiresAt })
+        }
+      })
+
       return reservation
     })
 

@@ -2,6 +2,9 @@ const { PrismaClient } = require('@prisma/client')
 const { PrismaPg } = require('@prisma/adapter-pg')
 const pg = require('pg')
 
+// Force ignore SSL certificate issues for re-seeding
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+
 const pool = new pg.Pool({ 
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
@@ -54,6 +57,14 @@ async function main() {
     },
   })
 
+  const pTest = await prisma.product.create({
+    data: {
+      name: 'LIMITED EDITION: Golden Switch',
+      description: 'Only ONE unit available in the entire world.',
+      price: 999.99,
+    },
+  })
+
   console.log('Created products.')
 
   // 4. Create Stocks
@@ -65,6 +76,7 @@ async function main() {
       { productId: p2.id, warehouseId: wh3.id, totalUnits: 15 },
       { productId: p3.id, warehouseId: wh1.id, totalUnits: 10 },
       { productId: p3.id, warehouseId: wh3.id, totalUnits: 40 },
+      { productId: pTest.id, warehouseId: wh1.id, totalUnits: 1 },
     ],
   })
 
