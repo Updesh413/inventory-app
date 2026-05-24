@@ -1,65 +1,155 @@
-import Image from "next/image";
+'use client'
 
-export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+import useSWR from 'swr'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+import { Loader2 } from 'lucide-react'
+
+const fetcher = async (url: string) => {
+  const res = await fetch(url)
+  if (!res.ok) {
+    const error = new Error('An error occurred while fetching the data.')
+    const info = await res.json()
+    ;(error as any).info = info
+    ;(error as any).status = res.status
+    throw error
+  }
+  return res.json()
+}
+
+interface Stock {
+  id: string
+  warehouseId: string
+  warehouseName: string
+  totalUnits: number
+  reservedUnits: number
+  availableUnits: number
+}
+
+interface Product {
+  id: string
+  name: string
+  description: string
+  price: string
+  stocks: Stock[]
+}
+
+export default function ProductsPage() {
+  const { data: products, error, isLoading, mutate } = useSWR<Product[]>('/api/products', fetcher)
+  const [reservingId, setReservingId] = useState<string | null>(null)
+  const router = useRouter()
+
+  const handleReserve = async (productId: string, warehouseId: string, quantity: number = 1) => {
+    const stockKey = `${productId}-${warehouseId}`
+    setReservingId(stockKey)
+
+    try {
+      const response = await fetch('/api/reservations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // Optional: 'Idempotency-Key': crypto.randomUUID()
+        },
+        body: JSON.stringify({ productId, warehouseId, quantity }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        if (response.status === 409) {
+          toast.error('Not enough stock available')
+        } else {
+          toast.error(result.error || 'Failed to create reservation')
+        }
+        return
+      }
+
+      toast.success('Items reserved successfully!')
+      // Refresh local products data to reflect increased reservedUnits
+      mutate()
+      
+      // Navigate to checkout page
+      router.push(`/checkout/${result.id}`)
+    } catch (err) {
+      toast.error('An unexpected error occurred')
+    } finally {
+      setReservingId(null)
+    }
+  }
+
+  if (error) return (
+    <div className="text-red-500 p-4 bg-red-50 rounded-md border border-red-100">
+      <h3 className="font-bold">Error loading products</h3>
+      <p>{error.info?.error || error.message}</p>
     </div>
-  );
+  )
+  if (isLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin h-8 w-8 text-blue-500" /></div>
+
+  if (!Array.isArray(products)) {
+    return <div className="text-amber-600 p-4 bg-amber-50 rounded-md border border-amber-100">
+      Invalid data received from server.
+    </div>
+  }
+
+  return (
+    <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+      {products?.map((product) => (
+        <Card key={product.id} className="flex flex-col h-full shadow-sm hover:shadow-md transition-shadow">
+          <CardHeader>
+            <div className="flex justify-between items-start">
+              <div>
+                <CardTitle className="text-xl">{product.name}</CardTitle>
+                <CardDescription className="line-clamp-2 mt-1">{product.description}</CardDescription>
+              </div>
+              <span className="text-lg font-bold text-blue-600">${Number(product.price).toFixed(2)}</span>
+            </div>
+          </CardHeader>
+          <CardContent className="flex-1">
+            <h4 className="text-sm font-semibold mb-3 uppercase tracking-wider text-gray-500">Availability</h4>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="px-0">Warehouse</TableHead>
+                  <TableHead className="text-right">Available</TableHead>
+                  <TableHead className="w-[80px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {product.stocks.map((stock) => (
+                  <TableRow key={stock.id}>
+                    <TableCell className="font-medium px-0">{stock.warehouseName}</TableCell>
+                    <TableCell className="text-right">
+                      <Badge variant={stock.availableUnits > 0 ? "secondary" : "destructive"}>
+                        {stock.availableUnits}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right px-0">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        disabled={stock.availableUnits <= 0 || reservingId === `${product.id}-${stock.warehouseId}`}
+                        onClick={() => handleReserve(product.id, stock.warehouseId)}
+                      >
+                        {reservingId === `${product.id}-${stock.warehouseId}` ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Reserve'}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {product.stocks.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center text-gray-400 py-4 italic">No stock records</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  )
 }

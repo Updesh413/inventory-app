@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Allo Inventory & Reservation System
+
+This is a real-time inventory management and reservation system built with Next.js, Prisma, PostgreSQL, and Redis. It solves the race condition where multiple customers might try to purchase the last unit of a product simultaneously.
+
+## Tech Stack
+
+- **Framework:** Next.js 15+ (App Router)
+- **Language:** TypeScript
+- **Database:** PostgreSQL (with Prisma ORM)
+- **Concurrency:** Pessimistic Locking (`SELECT ... FOR UPDATE`)
+- **Cache/Idempotency:** Upstash Redis
+- **Styling:** Tailwind CSS 4 + shadcn/ui
+- **Validation:** Zod
 
 ## Getting Started
 
-First, run the development server:
+### 1. Prerequisites
+
+- Node.js 18+
+- A hosted PostgreSQL instance (e.g., Supabase, Neon)
+- An Upstash Redis instance
+
+### 2. Environment Variables
+
+Create a `.env` file in the root of the `inventory-app` directory:
+
+```env
+DATABASE_URL="postgresql://user:password@host:port/dbname?sslmode=require"
+UPSTASH_REDIS_REST_URL="https://your-instance.upstash.io"
+UPSTASH_REDIS_REST_TOKEN="your-token"
+```
+
+### 3. Installation
+
+```bash
+cd inventory-app
+npm install
+```
+
+### 4. Database Setup
+
+```bash
+npx prisma migrate dev --name init
+npx prisma db seed
+```
+
+### 5. Run Locally
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Key Features
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Concurrency Control
+To prevent overselling, the `POST /api/reservations` endpoint uses **Database-level Pessimistic Locking**.
+Inside a transaction, we use a raw SQL query:
+```sql
+SELECT * FROM "Stock" WHERE "productId" = $1 AND "warehouseId" = $2 FOR UPDATE
+```
+This locks the specific stock row for the duration of the transaction, ensuring that concurrent requests for the same SKU are processed sequentially. If stock is insufficient, the transaction rolls back and returns a `409 Conflict`.
 
-## Learn More
+### Reservation Expiry
+Reservations are held for 10 minutes.
+- **Frontend:** A live countdown timer shows remaining time.
+- **Backend:** A cron job endpoint `/api/cron/release-expired` handles cleanup.
+- **Mechanism:** In production, this endpoint should be triggered by a Vercel Cron job (configured in `vercel.json`). It identifies expired `PENDING` reservations and reverts the `reservedUnits` in the `Stock` table.
 
-To learn more about Next.js, take a look at the following resources:
+### Idempotency
+Both the reservation creation and confirmation endpoints support an `Idempotency-Key` header.
+- We store the result of the first successful request in Redis with a 24-hour TTL.
+- Subsequent requests with the same key receive the cached response without re-executing side effects.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Trade-offs & Future Improvements
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **Distributed Locking vs DB Locking:** For this exercise, pessimistic DB locking was chosen for its simplicity and strong consistency guarantees within the transaction. In a massive scale global system, a distributed lock (e.g., Redlock) might be preferred to reduce DB load.
+2. **Lazy Cleanup:** Currently, we rely on a Cron job. For even higher accuracy, we could implement "lazy cleanup on read" where any fetching of stock levels first checks for and expires old reservations in that specific warehouse.
+3. **Analytics:** Adding an audit log table to track every stock movement (IN/OUT/RESERVE/RELEASE) would be essential for a production operations team.
