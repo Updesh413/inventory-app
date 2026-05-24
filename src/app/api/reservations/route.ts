@@ -14,6 +14,7 @@ interface RawStock {
 }
 
 export async function POST(req: NextRequest) {
+  let idempotencyKey: string | null = null
   try {
     // Lazy Cleanup: release any expired units before checking availability
     await releaseExpiredReservations()
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { productId, warehouseId, quantity } = validated.data
-    const idempotencyKey = req.headers.get('Idempotency-Key') || validated.data.idempotencyKey
+    idempotencyKey = req.headers.get('Idempotency-Key') || validated.data.idempotencyKey || null
 
     // 1. Idempotency Check
     if (idempotencyKey) {
