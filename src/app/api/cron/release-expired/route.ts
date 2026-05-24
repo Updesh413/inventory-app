@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { type ReservationStatus } from '@prisma/client'
 
 export async function GET(req: Request) {
   // Optional: Add authorization check for CRON_SECRET if deploying to Vercel

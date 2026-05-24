@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import redis from '@/lib/redis'
 import { createReservationSchema } from '@/lib/validations'
-import { type ReservationStatus } from '@prisma/client'
 import { releaseExpiredReservations } from '@/lib/cleanup'
 
 const RESERVATION_EXPIRY_MINUTES = 10

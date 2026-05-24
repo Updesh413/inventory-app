@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { type ReservationStatus } from '@prisma/client'
 
 export async function POST(
   req: NextRequest,
