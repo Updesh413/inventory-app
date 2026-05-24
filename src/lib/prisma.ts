@@ -8,9 +8,14 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 const prismaClientSingleton = () => {
+  if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL is not set')
+  }
+
   const pool = new pg.Pool({ 
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
+    ssl: { rejectUnauthorized: false },
+    max: 1 // Limit pool size for serverless environment
   })
   const adapter = new PrismaPg(pool)
   return new PrismaClient({ adapter })

@@ -31,8 +31,16 @@ export async function GET() {
     }))
 
     return NextResponse.json(result)
-  } catch (error) {
-    console.error('Error fetching products:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+  } catch (error: unknown) {
+    const err = error as { message?: string; stack?: string; code?: string }
+    console.error('Detailed Error fetching products:', {
+      message: err.message,
+      stack: err.stack,
+      code: err.code,
+    })
+    return NextResponse.json({ 
+      error: 'Database Connection Error', 
+      details: err.message 
+    }, { status: 500 })
   }
 }
