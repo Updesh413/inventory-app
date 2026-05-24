@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation'
 import useSWR from 'swr'
-import { useEffect, useState, use } from 'react'
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -10,13 +10,18 @@ import { toast } from 'sonner'
 import { Loader2, Timer, CheckCircle2, XCircle, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
+interface FetchError extends Error {
+  info?: { error?: string }
+  status?: number
+}
+
 const fetcher = async (url: string) => {
   const res = await fetch(url)
   if (!res.ok) {
-    const error = new Error('An error occurred while fetching the data.')
-    const info = await res.json()
-    ;(error as any).info = info
-    ;(error as any).status = res.status
+    const error: FetchError = new Error('An error occurred while fetching the data.')
+    const info = await res.json() as { error?: string }
+    error.info = info
+    error.status = res.status
     throw error
   }
   return res.json()
@@ -53,32 +58,43 @@ export default function CheckoutPage() {
   const [isProcessing, setIsProcessing] = useState(false)
 
   useEffect(() => {
-    if (!reservation || reservation.status !== 'PENDING') return
+    if (!reservation || reservation.status !== 'PENDING') {
+      const timeout = setTimeout(() => {
+        setTimeLeft(null)
+      }, 0)
+      return () => clearTimeout(timeout)
+    }
 
     const calculateTimeLeft = () => {
       const difference = new Date(reservation.expiresAt).getTime() - new Date().getTime()
       return Math.max(0, Math.floor(difference / 1000))
     }
 
-    setTimeLeft(calculateTimeLeft())
+    // Set initial time left asynchronously to avoid synchronous render warning
+    const timeout = setTimeout(() => {
+      setTimeLeft(calculateTimeLeft())
+    }, 0)
 
     const timer = setInterval(() => {
       const left = calculateTimeLeft()
       setTimeLeft(left)
       if (left <= 0) {
         clearInterval(timer)
-        mutate() // Trigger re-fetch to see if status changed to RELEASED by cron
+        mutate()
       }
     }, 1000)
 
-    return () => clearInterval(timer)
+    return () => {
+      clearTimeout(timeout)
+      clearInterval(timer)
+    }
   }, [reservation, mutate])
 
   const handleConfirm = async () => {
     setIsProcessing(true)
     try {
       const res = await fetch(`/api/reservations/${id}/confirm`, { method: 'POST' })
-      const data = await res.json()
+      const data = await res.json() as { error?: string }
 
       if (!res.ok) {
         if (res.status === 410) {
@@ -92,7 +108,8 @@ export default function CheckoutPage() {
 
       toast.success('Purchase confirmed successfully!')
       mutate()
-    } catch (err) {
+    } catch (err: unknown) {
+      console.error(err)
       toast.error('An unexpected error occurred')
     } finally {
       setIsProcessing(false)
@@ -103,7 +120,7 @@ export default function CheckoutPage() {
     setIsProcessing(true)
     try {
       const res = await fetch(`/api/reservations/${id}/release`, { method: 'POST' })
-      const data = await res.json()
+      const data = await res.json() as { error?: string }
 
       if (!res.ok) {
         toast.error(data.error || 'Failed to cancel reservation')
@@ -114,7 +131,8 @@ export default function CheckoutPage() {
       toast.info('Reservation cancelled.')
       mutate()
       router.push('/')
-    } catch (err) {
+    } catch (err: unknown) {
+      console.error(err)
       toast.error('An unexpected error occurred')
     } finally {
       setIsProcessing(false)

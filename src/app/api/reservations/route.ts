@@ -7,6 +7,12 @@ import { releaseExpiredReservations } from '@/lib/cleanup'
 
 const RESERVATION_EXPIRY_MINUTES = 10
 
+interface RawStock {
+  id: string
+  totalUnits: number
+  reservedUnits: number
+}
+
 export async function POST(req: NextRequest) {
   try {
     // Lazy Cleanup: release any expired units before checking availability
@@ -34,8 +40,8 @@ export async function POST(req: NextRequest) {
     const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Find the stock record and lock it for update
       // Prisma queryRaw is needed for FOR UPDATE
-      const stocks = await tx.$queryRaw<any[]>`
-        SELECT * FROM "Stock" 
+      const stocks = await tx.$queryRaw<RawStock[]>`
+        SELECT id, "totalUnits", "reservedUnits" FROM "Stock" 
         WHERE "productId" = ${productId} AND "warehouseId" = ${warehouseId} 
         LIMIT 1 
         FOR UPDATE
@@ -86,19 +92,21 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(result, { status: 201 })
 
-  } catch (error: any) {
-    if (error.message === 'INSUFFICIENT_STOCK') {
-      return NextResponse.json({ error: 'Not enough stock available' }, { status: 409 })
-    }
-    if (error.message === 'STOCK_NOT_FOUND') {
-      return NextResponse.json({ error: 'Stock record not found' }, { status: 404 })
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      if (error.message === 'INSUFFICIENT_STOCK') {
+        return NextResponse.json({ error: 'Not enough stock available' }, { status: 409 })
+      }
+      if (error.message === 'STOCK_NOT_FOUND') {
+        return NextResponse.json({ error: 'Stock record not found' }, { status: 404 })
+      }
     }
     
-    // Handle Prisma unique constraint error for idempotencyKey if redis check failed/was bypassed
-    if (error.code === 'P2002' && error.meta?.target?.includes('idempotencyKey')) {
-       // Try to fetch existing reservation if idempotency key conflict occurs
+    // Handle Prisma unique constraint error for idempotencyKey
+    const prismaError = error as { code?: string; meta?: { target?: string[] } }
+    if (prismaError.code === 'P2002' && prismaError.meta?.target?.includes('idempotencyKey')) {
        const existing = await prisma.reservation.findUnique({
-         where: { idempotencyKey: error.meta.target.value } // This is pseudo-code for finding the actual key
+         where: { idempotencyKey: idempotencyKey as string }
        })
        if (existing) return NextResponse.json(existing);
     }

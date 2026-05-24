@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import type { Prisma } from '@prisma/client'
 
-export async function GET(req: Request) {
+export async function GET() {
   // Optional: Add authorization check for CRON_SECRET if deploying to Vercel
   // const authHeader = req.headers.get('authorization');
   // if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {

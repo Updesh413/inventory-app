@@ -10,13 +10,18 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
 
+interface FetchError extends Error {
+  info?: { error?: string }
+  status?: number
+}
+
 const fetcher = async (url: string) => {
   const res = await fetch(url)
   if (!res.ok) {
-    const error = new Error('An error occurred while fetching the data.')
-    const info = await res.json()
-    ;(error as any).info = info
-    ;(error as any).status = res.status
+    const error: FetchError = new Error('An error occurred while fetching the data.')
+    const info = await res.json() as { error?: string }
+    error.info = info
+    error.status = res.status
     throw error
   }
   return res.json()
@@ -58,7 +63,7 @@ export default function ProductsPage() {
         body: JSON.stringify({ productId, warehouseId, quantity }),
       })
 
-      const result = await response.json()
+      const result = await response.json() as { id?: string, error?: string }
 
       if (!response.ok) {
         if (response.status === 409) {
@@ -75,7 +80,8 @@ export default function ProductsPage() {
       
       // Navigate to checkout page
       router.push(`/checkout/${result.id}`)
-    } catch (err) {
+    } catch (err: unknown) {
+      console.error(err)
       toast.error('An unexpected error occurred')
     } finally {
       setReservingId(null)
